@@ -11,6 +11,6 @@ install:
 
 script:
   - find . -name '*.go' | grep -v vendor | xargs gofmt -l | read && echo "Code differs from gofmt's style. Run 'gofmt -w .'" 1>&2 && exit 1 || true
-  - find . -name '*.go' | grep -v vendor | xargs go test
+  - go test $(go list ./... | grep -v /vendor/)
   - mkdir -p build/bin
   - gox -output="build/bin/{{.Dir}}-{{.OS}}-{{.Arch}}" -os='windows linux darwin' -arch='amd64 386' -osarch='!darwin/386'
