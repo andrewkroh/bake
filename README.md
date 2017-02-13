@@ -12,7 +12,7 @@ bash:
 
 windows cmd.exe:
 
-`FOR /f "tokens=*" %i IN ('".\bake.exe" gvm 1.7.4') DO set %i`
+`FOR /f "tokens=*" %i IN ('".\bake.exe" gvm 1.7.4') DO %i`
 
 Or using the project's Go version as determined by `libbeat/docs/versions.asciidoc` or `.travis.yml`. For example:
 

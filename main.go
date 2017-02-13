@@ -76,8 +76,8 @@ func doGvm() error {
 	}
 
 	if runtime.GOOS == "windows" {
-		fmt.Printf(`set GOROOT="%v"`+"\n", goroot)
-		fmt.Println(`set PATH="%GOROOT%\bin:%PATH%"`)
+		fmt.Printf("set GOROOT=%v\n", goroot)
+		fmt.Println(`set PATH=%GOROOT%\bin;%PATH%`)
 	} else {
 		fmt.Printf(`export GOROOT="%v"`+"\n", goroot)
 		fmt.Println(`export PATH="$GOROOT/bin:$PATH"`)
