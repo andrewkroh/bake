@@ -37,10 +37,10 @@ func doGvm() error {
 
 	if runtime.GOOS == "windows" {
 		fmt.Printf(`GOROOT="%v"`+"\n", goroot)
-		fmt.Printf(`PATH="%GOROOT%\bin:$PATH"` + "\n")
+		fmt.Println(`PATH="%GOROOT%\bin:$PATH"`)
 	} else {
 		fmt.Printf(`GOROOT="%v"`+"\n", goroot)
-		fmt.Printf(`PATH="$GOROOT/bin:$PATH"` + "\n")
+		fmt.Println(`PATH="$GOROOT/bin:$PATH"`)
 	}
 
 	return nil
