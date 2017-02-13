@@ -1,0 +1,7 @@
+package: github.com/elastic/beats/winlogbeat/tests/benchmark
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/pkg/errors
+- package: gopkg.in/alecthomas/kingpin.v2
+  version: ^2.2.3
+- package: github.com/alecthomas/template
