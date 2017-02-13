@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var log = logrus.WithField("package", "integ")
+var log = logrus.WithField("package", "common")
 
 var ExecutableExtension = ""
 
