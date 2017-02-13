@@ -22,14 +22,14 @@ func main() {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	// Post message
 	case gvm.FullCommand():
-		if err := gvm(); err != nil {
+		if err := doGvm(); err != nil {
 			fmt.Fprintf(os.Stderr, "Errof: %v\n", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func gvm() error {
+func doGvm() error {
 	goroot, err := golang.SetupGolang(*gvmVersion)
 	if err != nil {
 		return err
@@ -42,4 +42,6 @@ func gvm() error {
 		fmt.Printf(`GOROOT="%v"\n`, goroot)
 		fmt.Printf(`PATH="$GOROOT/bin:$PATH"\n`)
 	}
+
+	return nil
 }

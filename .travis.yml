@@ -4,3 +4,13 @@ go:
 - 1.7.4
 
 go_import_path: github.com/andrewkroh/bake
+
+
+install:
+  - go get github.com/mitchellh/gox
+
+script:
+  - find . -name '*.go' | grep -v vendor | xargs gofmt -l | read && echo "Code differs from gofmt's style. Run 'gofmt -w .'" 1>&2 && exit 1 || true
+  - find . -name '*.go' | grep -v vendor | xargs go test
+  - mkdir -p build/bin
+  - gox -output="build/bin/{{.Dir}}-{{.OS}}-{{.Arch}}" -os='windows linux darwin' -arch='amd64 386' -osarch='!darwin/386'
