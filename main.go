@@ -22,6 +22,7 @@ var (
 
 	gvm             = app.Command("gvm", "Go version management")
 	gvmUseGoVersion = gvm.Flag("project-go", "Use project's Go version").Bool()
+	gvmPowershell   = gvm.Flag("powershell", "Output powershell commands (windows only)").Bool()
 	gvmVersion      = gvm.Arg("version", "golang version").String()
 
 	info          = app.Command("info", "Project info")
@@ -76,8 +77,13 @@ func doGvm() error {
 	}
 
 	if runtime.GOOS == "windows" {
-		fmt.Printf("set GOROOT=%v\n", goroot)
-		fmt.Printf("set PATH=%s\bin;%s\n", goroot, os.Getenv("PATH"))
+		if *gvmPowershell {
+			fmt.Printf(`$env:GOROOT = "%v"`+"\n", goroot)
+			fmt.Printf(`$env:PATH = "$env:GOROOT\bin;$env:PATH"` + "\n")
+		} else {
+			fmt.Printf("set GOROOT=%v\n", goroot)
+			fmt.Printf("set PATH=%s\bin;%s\n", goroot, os.Getenv("PATH"))
+		}
 	} else {
 		fmt.Printf(`export GOROOT="%v"`+"\n", goroot)
 		fmt.Println(`export PATH="$GOROOT/bin:$PATH"`)
