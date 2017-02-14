@@ -83,6 +83,14 @@ func doGvm() error {
 		fmt.Println(`export PATH="$GOROOT/bin:$PATH"`)
 	}
 
+	if strings.HasPrefix(version, "1.5") {
+		if runtime.GOOS == "windows" {
+			fmt.Println("set GO15VENDOREXPERIMENT=1")
+		} else {
+			fmt.Println("export GO15VENDOREXPERIMENT=1")
+		}
+	}
+
 	return nil
 }
 
