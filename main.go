@@ -132,15 +132,16 @@ func parseVersionsAsciidoc() (string, error) {
 }
 
 func parseTravisYml() (string, error) {
-	file, err := ioutil.ReadFile(".travis.yml")
+	filename := ".travis.yml"
+	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", err
 	}
 
-	var re = regexp.MustCompile(`(?mi)^go:\n\s*-\s+(\S+)\s*$`)
+	var re = regexp.MustCompile(`(?mi)^go:\r?\n\s*-\s+(\S+)\s*$`)
 	matches := re.FindAllStringSubmatch(string(file), 1)
 	if len(matches) == 0 {
-		return "", fmt.Errorf("go not found in travisci.yml")
+		return "", fmt.Errorf("go not found in %v", filename)
 	}
 
 	goVersion := matches[0][1]
