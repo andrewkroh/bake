@@ -14,7 +14,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-var version = "0.0.4"
+var version = "0.0.10"
 
 var (
 	app   = kingpin.New("bake", "Beats make tool for building Elastic Beats.")

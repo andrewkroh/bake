@@ -1,10 +1,14 @@
 bake
 ====
 
+An attempt at simplifying the building of Go project across Unix and Windows
+development environments.
+
 gvm
 ---
 
-Go version management. This installs and sets GOROOT and PATH.
+Go version management. This is for bootstrapping Go once you have a
+release of `bake` downloaded. This installs Go and sets GOROOT and PATH.
 
 bash:
 
@@ -12,15 +16,22 @@ bash:
 
 windows cmd.exe:
 
-`FOR /f "tokens=*" %i IN ('".\bake.exe" gvm 1.7.4') DO %i`
+`FOR /f "tokens=*" %i IN ('"bake.exe" gvm 1.7.4') DO %i`
 
-Or using the project's Go version as determined by `libbeat/docs/versions.asciidoc` or `.travis.yml`. For example:
+windows powershell.exe:
 
-`eval "$(./bake gvm --project-go)"`
+`bake gvm --powershell 1.7.4 | Invoke-Expression`
+
+Or using the project's Go version. For example:
+
+`eval "$(bake gvm --project-go)"`
 
 info
 ----
 
 Get project info.
 
-`./bake info --go-version`
+This determines the Go version that a project uses by reading the Go
+version defined in the projects `.travis.yml` file.
+
+`bake info --go-version`
