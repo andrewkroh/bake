@@ -1,7 +1,7 @@
 bake
 ====
 
-An attempt at simplifying the building of Go project across Unix and Windows
+An attempt at simplifying the building of Go projects across Unix and Windows
 development environments.
 
 gvm
