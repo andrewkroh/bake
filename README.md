@@ -31,7 +31,29 @@ info
 
 Get project info.
 
+`--project-go`
+
 This determines the Go version that a project uses by reading the Go
 version defined in the projects `.travis.yml` file.
 
 `bake info --go-version`
+
+`--go-files`
+
+This provides a list of the project's Go files minus any vendored dependencies.
+This is useful with commands like `goimports -w -l $(bake info --go-files)`.
+
+`--go-packages`
+
+This provides a list of the project's packages minus any vendored dependencies.
+This is useful with commands like `go test $(bake info --go-packages)`.
+
+check
+-----
+
+Run checks on the project.
+
+`bake check fmt`
+
+This checks that all `.go` files (except vendored dependencies) in the project
+are formatted according to `gofmt -s`.

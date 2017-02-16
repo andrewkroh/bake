@@ -1,10 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -17,7 +18,7 @@ import (
 var version = "0.0.10"
 
 var (
-	app   = kingpin.New("bake", "Beats make tool for building Elastic Beats.")
+	app   = kingpin.New("bake", "Utility for working with Go projects")
 	debug = app.Flag("debug", "Enable debug logging").Bool()
 
 	gvm             = app.Command("gvm", "Go version management")
@@ -25,8 +26,13 @@ var (
 	gvmPowershell   = gvm.Flag("powershell", "Output powershell commands (windows only)").Bool()
 	gvmVersion      = gvm.Arg("version", "golang version").String()
 
-	info          = app.Command("info", "Project info")
-	infoGoVersion = info.Flag("go-version", "Print golang version used by project").Bool()
+	info           = app.Command("info", "Project info")
+	infoProjectGo  = info.Flag("project-go", "Print golang version used by project").Bool()
+	infoGoFiles    = info.Flag("go-files", "Print Go files sans vendor").Bool()
+	infoGoPackages = info.Flag("go-packages", "Print Go packages sans vendor").Bool()
+
+	check    = app.Command("check", "Run checks on the project")
+	checkFmt = check.Arg("fmt", "Check that all code is formatted with gofmt").String()
 )
 
 var log = logrus.WithField("package", "main")
@@ -48,6 +54,8 @@ func main() {
 		err = doGvm()
 	case info.FullCommand():
 		err = doInfo()
+	case check.FullCommand():
+		err = doCheck()
 	}
 
 	if err != nil {
@@ -101,48 +109,80 @@ func doGvm() error {
 }
 
 func doInfo() error {
-	ver, err := getProjectGoVersion()
-	if err != nil {
-		return err
+	switch {
+	default:
+		return fmt.Errorf("no info flag specified")
+	case *infoProjectGo:
+		ver, err := getProjectGoVersion()
+		if err != nil {
+			return err
+		}
+		fmt.Println(ver)
+	case *infoGoFiles:
+		files, err := goFiles()
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			fmt.Println(f)
+		}
+	case *infoGoPackages:
+		packages, err := goPackages()
+		if err != nil {
+			return err
+		}
+		for _, f := range packages {
+			fmt.Println(f)
+		}
 	}
-
-	fmt.Println(ver)
 	return nil
 }
 
-func getProjectGoVersion() (string, error) {
-	ver, err := parseVersionsAsciidoc()
-	if err == nil {
-		return ver, nil
-	}
-	log.Error(err)
+func doCheck() error {
+	switch {
+	default:
+		return fmt.Errorf("no check argument specified")
+	case *checkFmt != "":
+		files, err := checkFormatting()
+		if err != nil {
+			return err
+		}
 
-	ver, err = parseTravisYml()
-	if err == nil {
-		return ver, nil
-	}
-	log.Error(err)
-
-	return "", fmt.Errorf("failed to detect the project's golang version")
-}
-
-func parseVersionsAsciidoc() (string, error) {
-	file, err := os.Open("libbeat/docs/version.asciidoc")
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		parts := strings.SplitN(scanner.Text(), " ", 2)
-		if len(parts) == 2 && parts[0] == ":go-version:" {
-			goVersion := strings.TrimSpace(parts[1])
-			return goVersion, nil
+		if len(files) > 0 {
+			for _, f := range files {
+				fmt.Println(f)
+			}
+			return fmt.Errorf("these files need to be formatted with gofmt")
 		}
 	}
+	return nil
+}
 
-	return "", fmt.Errorf("go-version not found")
+func checkFormatting() ([]string, error) {
+	files, err := goFiles()
+	if err != nil {
+		return nil, err
+	}
+
+	args := make([]string, 0, len(files)+2)
+	args = append(args, "-s", "-l")
+	args = append(args, files...)
+
+	out, err := exec.Command("gofmt", args...).Output()
+	if err != nil {
+		return nil, err
+	}
+
+	return strings.Fields(string(out)), nil
+}
+
+func getProjectGoVersion() (string, error) {
+	ver, err := parseTravisYml()
+	if err != nil {
+		return "", fmt.Errorf("failed to detect the project's golang version: %v", err)
+	}
+
+	return ver, nil
 }
 
 func parseTravisYml() (string, error) {
@@ -160,4 +200,60 @@ func parseTravisYml() (string, error) {
 
 	goVersion := matches[0][1]
 	return goVersion, nil
+}
+
+func goFiles() ([]string, error) {
+	var files []string
+	callback := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+
+		// Select .go files only.
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+
+		// Filter vendor
+		for _, dir := range strings.Split(path, string(filepath.Separator)) {
+			if dir == "vendor" {
+				return nil
+			}
+		}
+
+		files = append(files, path)
+		return nil
+	}
+
+	return files, filepath.Walk(".", callback)
+}
+
+func goPackages() ([]string, error) {
+	out, err := exec.Command("go", "list", "./...").Output()
+	if err != nil {
+		return nil, err
+	}
+
+	packages := strings.Split(string(out), "\n")
+	filtered := packages[:0]
+
+	// Filter vendor
+outer:
+	for _, p := range packages {
+		for _, dir := range strings.Split(p, string(filepath.Separator)) {
+			if dir == "vendor" {
+				continue outer
+			}
+		}
+
+		if strings.TrimSpace(p) != "" {
+			filtered = append(filtered, p)
+		}
+	}
+
+	return filtered, nil
 }
