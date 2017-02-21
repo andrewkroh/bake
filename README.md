@@ -1,59 +1,66 @@
 bake
 ====
 
-An attempt at simplifying the building of Go projects across Unix and Windows
-development environments.
-
-gvm
----
-
-Go version management. This is for bootstrapping Go once you have a
-release of `bake` downloaded. This installs Go and sets GOROOT and PATH.
-
-bash:
-
-`eval "$(./bake gvm 1.7.4)"`
-
-windows cmd.exe:
-
-`FOR /f "tokens=*" %i IN ('"bake.exe" gvm 1.7.4') DO %i`
-
-windows powershell.exe:
-
-`bake gvm --powershell 1.7.4 | Invoke-Expression`
-
-Or using the project's Go version. For example:
-
-`eval "$(bake gvm --project-go)"`
-
-info
-----
-
-Get project info.
-
-`--project-go`
-
-This determines the Go version that a project uses by reading the Go
-version defined in the projects `.travis.yml` file.
-
-`bake info --go-version`
-
-`--go-files`
-
-This provides a list of the project's Go files minus any vendored dependencies.
-This is useful with commands like `goimports -w -l $(bake info --go-files)`.
-
-`--go-packages`
-
-This provides a list of the project's packages minus any vendored dependencies.
-This is useful with commands like `go test $(bake info --go-packages)`.
-
-check
+Usage
 -----
 
-Run checks on the project.
+```
+usage: bake [<flags>] <command> [<args> ...]
 
-`bake check fmt`
+Utility for working with Beats projects
 
-This checks that all `.go` files (except vendored dependencies) in the project
-are formatted according to `gofmt -s`.
+Flags:
+  -h, --help   Show context-sensitive help (also try --help-long and --help-man).
+  -d, --debug  Enable debug logging
+
+Commands:
+  help [<command>...]
+    Show help.
+
+
+  test [<flags>] [<packages>]
+    Run tests.
+
+    --cover           Generate code coverage output and HTML report
+    --race            Enable race detector while testing
+    --junit           Generate JUnit XML report summarizing test results
+    --tests=unit ...  Test types to execute. Options are unit (default), benchmark, integ, and system.
+
+  crosscompile
+    Cross-compile the beat without CGO
+
+
+  docs
+    Build the Elastic asciidoc book for the Beat
+
+
+  ci
+    Run all checks and tests.
+
+
+  check [<checks>...]
+    Run checks on the project. The options are fmt, vet, and notice. By default all checks are run.
+
+
+  fmt
+    Run gofmt -s on non-vendor Go files
+
+
+  notice [<flags>] [<dirs>...]
+    Create a NOTICE file containing the licenses of the project's vendored dependencies.
+
+    -b, --beat="Elastic Beats"  Beat name
+    -c, --copyright="Elasticsearch BV"  
+                                Copyright owner
+    -y, --year=2014             Copyright begin year
+    -o, --output=NOTICE         Output file
+
+  docker [<flags>] [<script>]
+    Start test services powered by Docker and open a shell on the host where environment variables point to services.
+
+    -p, --project=PROJECT  Specify an alternate project name (default: directory name)
+    -f, --file=docker-compose.yml ...  
+                           Specify an alternate compose file (default: docker-compose.yml)
+    -o, --log=LOG          Specify log output file
+```
+
