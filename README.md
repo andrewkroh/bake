@@ -1,6 +1,11 @@
 bake
 ====
 
+Installation
+------------
+
+`go get github.com/andrewkroh/bake`
+
 Usage
 -----
 
