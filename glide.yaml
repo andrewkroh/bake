@@ -1,7 +1,15 @@
-package: github.com/elastic/beats/winlogbeat/tests/benchmark
+package: github.com/andrewkroh/bake
 import:
 - package: github.com/Sirupsen/logrus
+  version: ^0.11.2
+- package: github.com/joeshaw/multierror
 - package: github.com/pkg/errors
+  version: ^0.8.0
 - package: gopkg.in/alecthomas/kingpin.v2
   version: ^2.2.3
-- package: github.com/alecthomas/template
+- package: gopkg.in/yaml.v2
+testImport:
+- package: github.com/stretchr/testify
+  version: ^1.1.4
+  subpackages:
+  - assert

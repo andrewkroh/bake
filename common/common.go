@@ -1,16 +1,12 @@
 package common
 
 import (
-	"fmt"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
-	"net/http"
 	"os"
-	"path/filepath"
-	"text/template"
-
-	"bytes"
 	"os/exec"
-	"runtime"
+	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -19,98 +15,117 @@ import (
 
 var log = logrus.WithField("package", "common")
 
-var ExecutableExtension = ""
-
-func init() {
-	if runtime.GOOS == "windows" {
-		ExecutableExtension = ".exe"
-	}
-}
-
-func DownloadFile(url, destinationDir string) (string, error) {
-	log.WithField("url", url).Debug("downloading file")
-
-	resp, err := http.Get(url)
+// FindGitProjectRoot searches up from the CWD to find the root of a git project.
+// This should return the same value as `git rev-parse --show-toplevel`.
+func FindGitProjectRoot() (string, error) {
+	dir, err := os.Getwd()
 	if err != nil {
-		return "", errors.Wrap(err, "http get failed")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.Errorf("download failed with http status %v", resp.StatusCode)
+		return "", err
 	}
 
-	name := filepath.Join(destinationDir, filepath.Base(url))
-	f, err := os.Create(name)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create output file")
-	}
-
-	numBytes, err := io.Copy(f, resp.Body)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to write file to disk")
-	}
-	log.WithFields(logrus.Fields{"file": name, "size_bytes": numBytes}).Debug("download complete")
-
-	return name, nil
-}
-
-func WriteTemplateToFile(t *template.Template, data interface{}, outputFile string) error {
-	f, err := os.Create(outputFile)
-	if err != nil {
-		return fmt.Errorf("failed to create output file: %v", err)
-	}
-
-	err = t.Execute(f, data)
-	if err != nil {
-		return fmt.Errorf("failed to render template: %v", err)
-	}
-
-	return nil
-}
-
-func RunGoCmd(goroot, gopath, dir string, args ...string) (string, error) {
-	cmd := exec.Command(filepath.Join(goroot, "bin", "go"), args...)
-	cmd.Dir = dir
-	cmd.Env = []string{
-		fmt.Sprintf("PATH=%v", os.Getenv("PATH")), // cgo builds need a compiler.
-		fmt.Sprintf("GOROOT=%v", goroot),
-		fmt.Sprintf("GOPATH=%v", gopath),
-	}
-	var combinedOutput bytes.Buffer
-	cmd.Stdout = &combinedOutput
-	cmd.Stderr = &combinedOutput
-
-	log.WithFields(logrus.Fields{
-		"command": strings.Join(cmd.Args, " "),
-		"dir":     cmd.Dir,
-		"env":     cmd.Env,
-	}).Debug("running command")
-
-	err := cmd.Run()
-	output := combinedOutput.String()
-	return output, err
-}
-
-func CopyFile(src, dst string) (err error) {
-	in, err := os.Open(src)
-	if err != nil {
-		return
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return
-	}
-	defer func() {
-		cerr := out.Close()
-		if err == nil {
-			err = cerr
+	for {
+		_, err := os.Lstat(filepath.Join(dir, ".git"))
+		if err != nil {
+			if os.IsNotExist(err) {
+				up := filepath.Dir(dir)
+				if len(up) == len(dir) {
+					return "", errors.New("git project root not found")
+				}
+				dir = up
+				continue
+			}
+			return "", err
 		}
-	}()
-	if _, err = io.Copy(out, in); err != nil {
-		return
+
+		return dir, nil
 	}
-	err = out.Sync()
-	return
+}
+
+// RunCommand is a wrapper around exec.Command.Output that provides a more
+// descriptive error message on failure then the default provided by ExitError.
+func RunCommand(cmd *exec.Cmd) ([]byte, error) {
+	out, err := cmd.Output()
+	if err != nil {
+		fullCmd := strings.Join(cmd.Args, " ")
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return out, errors.Errorf(`command failed (cmd="%v"): %v (stderr=%v)`, fullCmd, exitError, string(exitError.Stderr))
+		}
+		return out, errors.Errorf(`command failed (cmd="%v"): %v`, fullCmd, err)
+	}
+	return out, nil
+}
+
+// GoFiles returns a list of non-vendor go files.
+func GoFiles() ([]string, error) {
+	var files []string
+	callback := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+
+		// Select .go files only.
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+
+		// Filter vendor
+		for _, dir := range strings.Split(path, string(filepath.Separator)) {
+			if dir == "vendor" {
+				return nil
+			}
+		}
+
+		files = append(files, path)
+		return nil
+	}
+
+	return files, filepath.Walk(".", callback)
+}
+
+// GoPackages return a list of non-vendor go packages.
+func GoPackages() ([]string, error) {
+	out, err := RunCommand(exec.Command("go", "list", "./..."))
+	if err != nil {
+		return nil, err
+	}
+
+	packages := strings.Split(string(out), "\n")
+	filtered := packages[:0]
+
+	// Filter vendor
+outer:
+	for _, p := range packages {
+		for _, dir := range strings.Split(p, string(filepath.Separator)) {
+			if dir == "vendor" {
+				continue outer
+			}
+		}
+
+		if strings.TrimSpace(p) != "" {
+			filtered = append(filtered, p)
+		}
+	}
+
+	return filtered, nil
+}
+
+// Sha256Sum returns a hex encoded sha256 sum of the specified file.
+func Sha256Sum(file string) (string, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to open file for sha256 sum")
+	}
+	defer f.Close()
+
+	h := sha256.New()
+
+	if _, err := io.Copy(h, f); err != nil {
+		return "", errors.Wrap(err, "failed to calculate sha256 sum")
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
